@@ -3,8 +3,8 @@ import axios from 'axios'
 import Form from '/src/components/Form'
 import Persons from '/src/components/Persons'
 import Search from './components/Search'
+import Notification from './components/Notification'
 import phonebookService from './services/phonebook'
-import Notification from './components/notification'
 
 function App() {
   const [persons, setPersons] = useState([])
