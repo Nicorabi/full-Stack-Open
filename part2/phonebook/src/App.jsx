@@ -1,15 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 import Form from '/src/components/Form'
 import Persons from '/src/components/Persons'
 import Search from './components/Search'
+import phonebookService from './services/phonebook'
+import Notification from './components/notification'
 
 function App() {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ])
+  const [persons, setPersons] = useState([])
 
   const [newName, setNewName] = useState('')
 
@@ -17,21 +15,57 @@ function App() {
 
   const [filter, setFilter] = useState('')
 
+  const [notificationMessage, setNotificationMessage] = useState(null)
+
+  useEffect(() => {
+    axios
+      .get('http://localhost:3001/persons')
+      .then(response => {
+        setPersons(response.data)
+      })
+  }, [])
+
   function addName(event) {
     event.preventDefault()
-    if (persons.find(person => person.name === newName)) {
-      window.alert(`${newName} is already added to phonebook`)
-      return false;
-    }
+    const existingPerson = persons.find(person => person.name === newName)
 
-    const noteObject = {
+    if (existingPerson) {
+      if (window.confirm(`${newName}' is already added to the phonebook, replace the old number with a new one?`)) {
+        updateNumber(existingPerson.id)
+      }
+    } else {
+      const noteObject = {
+        name: newName,
+        number: newNumber,
+        id: crypto.randomUUID()
+      }
+
+      phonebookService.create(noteObject).then(returnedPerson => {
+        setPersons([...persons, returnedPerson])
+        setNotificationMessage(`Added ${newName} to phonebook`)
+        setTimeout(() => {
+          setNotificationMessage(null)
+        }, 5000)
+      })
+    }
+  }
+
+  const updateNumber = async (id) => {
+    const updatedPerson = {
       name: newName,
       number: newNumber,
-      id: crypto.randomUUID()
+      id: id
     }
 
-    setPersons([...persons, noteObject])
+    phonebookService.update(id, updatedPerson).then(returnedPerson => {
+      setPersons(persons.map(person => person.id === id ? returnedPerson : person))
+      setNotificationMessage(`Updated ${newName}'s number`)
+      setTimeout(() => {
+        setNotificationMessage(null)
+      }, 5000)
+    })
   }
+
 
   function handleNameChange(event) {
     setNewName(event.target.value)
@@ -52,6 +86,8 @@ function App() {
   return (
     <>
       <h2>Phonebook</h2>
+      <Notification message={notificationMessage} />
+      <br />
       <Search filter={filter} handleFilter={handleFilter} />
       <h2>add a new</h2>
       <Form newName={newName}
@@ -60,7 +96,12 @@ function App() {
         handleNumberChange={handleNumberChange}
         addName={addName} />
       <h2>Numbers</h2>
-      <Persons filteredPersons={filteredPersons} />
+      <Persons
+        filteredPersons={filteredPersons}
+        setPersons={setPersons}
+        persons={persons}
+        setNotificationMessage={setNotificationMessage}
+      />
     </>
   )
 }
